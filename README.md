@@ -1,1 +1,619 @@
-# Senathai
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>วิจิตรอักษรา เสนานุชิต สืบศิลป์ | ตู้ถ่ายภาพ</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        /* * นำฟอนต์ของคุณมาใส่ที่นี่ 
+         * เปลี่ยน 'your-font-file.ttf' เป็นชื่อไฟล์ฟอนต์ที่คุณเตรียมไว้
+         */
+        @font-face {
+            font-family: 'ThaiCustomFont';
+            src: url('your-font-file.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            /* Palette: ธีมภาคกลาง (ไม้, ทอง, ครีมอุ่น) */
+            --bg-paper: #FDF5E6;      /* สีครีมกระดาษสา */
+            --ink-primary: #4A3018;   /* สีน้ำตาลเข้มไม้สัก */
+            --ink-secondary: #8B5A2B; /* สีน้ำตาลทอง */
+            --accent-green: #556B2F;  /* สีเขียวใบตอง */
+            --accent-warm: #D4AF37;   /* สีทอง */
+            
+            /* กำหนดให้ใช้ฟอนต์ที่อัพโหลดเป็นหลัก ถ้าไม่มีจะใช้ฟอนต์ระบบ */
+            --font-head: 'ThaiCustomFont', 'Sarabun', 'Mitr', sans-serif;
+            --font-body: 'ThaiCustomFont', 'Sarabun', 'Prompt', sans-serif;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg-paper);
+            color: var(--ink-primary);
+            height: 100vh; height: 100dvh; width: 100vw;
+            overflow: hidden;
+            font-family: var(--font-body);
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Background Texture */
+        .paper-bg {
+            position: absolute; inset: 0; z-index: -1;
+            background-image: url('bg_paper.png'); 
+            background-color: var(--bg-paper);
+            background-size: cover;
+            opacity: 0.9;
+        }
+
+        /* Screen States */
+        .screen {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 10;
+        }
+        .screen.active { opacity: 1; pointer-events: auto; }
+
+        /* --- 1. HOME SCREEN --- */
+        #screen-home {
+            justify-content: center; align-items: center; text-align: center; padding: 20px;
+        }
+        .main-logo {
+            width: 250px; max-width: 80%; height: auto;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+
+        .logo-text {
+            font-family: var(--font-head); 
+            font-size: 3rem; 
+            line-height: 1.2;
+            color: var(--ink-primary);
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-start {
+            background: var(--ink-primary); color: #fff; border: none;
+            padding: 15px 50px; font-family: var(--font-head); font-size: 2rem;
+            border-radius: 50px; cursor: pointer; 
+            box-shadow: 0 6px 0 var(--ink-secondary);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-start:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink-secondary); }
+        
+        .tagline { margin-top: 25px; color: var(--ink-secondary); font-size: 1.2rem; font-weight: bold; }
+
+        /* --- 1.5 FRAME SELECTION --- */
+        #screen-select-frame {
+            justify-content: center; align-items: center; background: rgba(253, 245, 230, 0.95);
+        }
+        .page-title { font-family: var(--font-head); font-size: 3rem; color: var(--ink-primary); margin-bottom: 10px; }
+        .frame-grid {
+            display: flex; gap: 20px; justify-content: center; align-items: center;
+            flex-wrap: wrap; width: 100%; max-width: 900px; padding: 10px;
+        }
+        .frame-option {
+            cursor: pointer; transition: 0.3s;
+            background: #fff; padding: 15px; border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(74, 48, 24, 0.15);
+            display: flex; flex-direction: column; align-items: center;
+            width: 60%; max-width: 250px;
+        }
+        .frame-option img {
+            width: 100%; height: auto; aspect-ratio: 2/3;
+            object-fit: contain; border-radius: 8px; border: 1px dashed var(--ink-secondary);
+            background: #fafafa;
+        }
+        .frame-option:hover { transform: translateY(-10px); box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3); }
+        .frame-label { margin-top: 15px; font-family: var(--font-head); font-size: 1.5rem; color: var(--ink-primary); }
+
+        /* --- 2. CAMERA SCREEN --- */
+        #screen-cam { background: #222; justify-content: space-between; }
+        
+        .ui-top {
+            position: absolute; top: 0; width: 100%; padding: 20px;
+            display: flex; justify-content: space-between; align-items: center; z-index: 20;
+            color: #fff; font-family: var(--font-body); font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .viewport { 
+            flex: 1; position: relative; overflow: hidden; 
+            display: flex; justify-content: center; align-items: center; width: 100%;
+        }
+        video#video-feed { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+        .cam-sidebar {
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 20px; z-index: 30;
+        }
+        .tool-icon {
+            width: 45px; height: 45px; background: rgba(0,0,0,0.4); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1.2rem; cursor: pointer; backdrop-filter: blur(5px);
+            transition: 0.2s; border: 1px solid rgba(255,255,255,0.3);
+        }
+        .tool-icon:active { transform: scale(0.9); background: var(--accent-green); }
+
+        #countdown {
+            position: absolute; font-family: var(--font-head); font-size: 10rem; color: #fff;
+            display: none; z-index: 100; text-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .ui-bottom {
+            height: 160px; width: 100%; background: #fff;
+            border-radius: 30px 30px 0 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20; position: relative;
+        }
+        
+        .filter-select { display: flex; gap: 20px; margin-bottom: 15px; }
+        .f-item { font-size: 1rem; color: #999; cursor: pointer; font-weight: 600; font-family: var(--font-head); }
+        .f-item.active { color: var(--ink-primary); border-bottom: 2px solid var(--ink-primary); }
+
+        .shutter-outer {
+            width: 75px; height: 75px; border-radius: 50%;
+            border: 4px solid var(--ink-primary); display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .shutter-inner { width: 60px; height: 60px; background: var(--ink-primary); border-radius: 50%; }
+        .shutter-outer:active { transform: scale(0.95); }
+
+        /* --- 3. RESULT SCREEN --- */
+        #screen-result {
+            background: var(--bg-paper); flex-direction: row; 
+        }
+        
+        .preview-area {
+            flex: 1; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: radial-gradient(#fff, var(--bg-paper));
+            padding: 20px;
+        }
+        .preview-img {
+            max-height: 90%; width: auto; 
+            box-shadow: 0 10px 40px rgba(74, 48, 24, 0.2);
+            transform: rotate(-1deg); border: 8px solid #fff;
+        }
+
+        .control-panel {
+            width: 320px; background: #fff;
+            border-left: 1px dashed var(--ink-secondary);
+            display: flex; flex-direction: column; padding: 30px;
+            justify-content: center; text-align: center;
+        }
+
+        .result-head { font-family: var(--font-head); font-size: 2.2rem; color: var(--ink-primary); margin-bottom: 5px; }
+        
+        .btn-action {
+            background: #fff; border: 2px solid var(--ink-primary); color: var(--ink-primary);
+            width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 12px; 
+            font-family: var(--font-body); font-weight: 600; font-size: 1.1rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: 0.2s;
+        }
+        .btn-action:hover { background: var(--bg-paper); }
+        .btn-primary { background: var(--ink-primary); color: #fff; }
+        .btn-primary:hover { opacity: 0.9; background: var(--ink-primary); color: #fff; }
+
+        #qr-box { margin: 10px auto; padding: 10px; background: #fff; border: 2px dashed var(--ink-secondary); display: none; }
+        
+        #flash { position: fixed; inset: 0; background: #fff; z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+
+        /* --- PRINT MEDIA --- */
+        #print-only-img { display: none; }
+        @media print {
+            body { visibility: hidden; background: white; margin: 0; }
+            .screen, .paper-bg { display: none !important; }
+            #print-only-img {
+                display: block !important; visibility: visible !important;
+                position: fixed; top: 0; left: 0; height: 100%; width: auto; z-index: 9999;
+            }
+            @page { size: 4in 6in; margin: 0; }
+        }
+
+        /* Mobile Layout */
+        @media (max-width: 900px) {
+            #screen-result { flex-direction: column; overflow-y: auto; }
+            .preview-area { height: 55%; padding: 20px; }
+            .control-panel { width: 100%; height: auto; border-left: none; border-top: 1px dashed var(--ink-secondary); padding: 20px; }
+            .preview-img { max-height: 100%; width: auto; transform: rotate(0); }
+            .frame-option { width: 80%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="paper-bg"></div>
+
+    <div id="screen-home" class="screen active">
+        <img src="logo.png" class="main-logo" alt="โลโก้" onerror="this.style.display='none'; document.querySelector('.logo-text').style.display='block'">
+        <div class="logo-text" style="display:none;">วิจิตรอักษรา<br>เสนานุชิต สืบศิลป์</div>
+        
+        <button class="btn-start" onclick="OS.goToFrameSelect()">เริ่มถ่ายภาพ</button>
+        <div class="tagline">วันภาษาไทยแห่งชาติ ธีมภาคกลาง</div>
+    </div>
+
+    <div id="screen-select-frame" class="screen">
+        <div class="page-title">เลือกกรอบรูป</div>
+        <div style="color:var(--ink-secondary); font-family:var(--font-head); font-size:1.2rem;">สืบสานความงามวิถีไทย</div>
+        
+        <div class="frame-grid">
+            <div class="frame-option" onclick="OS.selectFrame('frame-central.png')">
+                <img src="frame-central.png" alt="กรอบภาคกลาง" onerror="this.src='https://placehold.co/400x600/FDF5E6/4A3018?text=Frame+Central'">
+                <div class="frame-label">กรอบวิถีภาคกลาง</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-cam" class="screen">
+        <div class="ui-top">
+            <span style="color:var(--accent-warm);">● บันทึกภาพ</span>
+            <span id="clock">00:00</span>
+        </div>
+
+        <div class="viewport">
+            <video id="video-feed" autoplay playsinline muted></video>
+            <div id="countdown">3</div>
+            
+            <div class="cam-sidebar">
+                <div class="tool-icon" onclick="OS.toggleCamFlip()" title="สลับกล้อง">↺</div>
+                <div class="tool-icon" onclick="OS.toggleTimer()" id="btn-timer" style="font-size:1rem; font-weight:bold;" title="ตั้งเวลา">3s</div>
+                <div class="tool-icon" onclick="OS.toggleFlash()" title="แฟลช">⚡</div>
+            </div>
+        </div>
+
+        <div class="ui-bottom">
+            <div class="filter-select">
+                <div class="f-item active" onclick="OS.filter('normal', this)">ต้นฉบับ</div>
+                <div class="f-item" onclick="OS.filter('soft', this)">นุ่มนวล</div>
+                <div class="f-item" onclick="OS.filter('bw', this)">ขาวดำ</div>
+                <div class="f-item" onclick="OS.filter('warm', this)">อบอุ่น</div>
+            </div>
+            <div class="shutter-outer" onclick="OS.snap()">
+                <div class="shutter-inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div class="preview-area">
+            <img id="final-img" class="preview-img" alt="ภาพถ่ายของคุณ">
+        </div>
+
+        <div class="control-panel">
+            <div class="result-head">วิจิตรอักษรา</div>
+            <div style="font-size:1rem; color:var(--ink-secondary); margin-bottom:20px; font-family:var(--font-head);">บันทึกความทรงจำเรียบร้อย</div>
+
+            <div id="qr-box">
+                <div id="qrcode" style="display:flex; justify-content:center;"></div>
+            </div>
+
+            <div style="display:flex; justify-content:center; margin-bottom:10px;">
+                <span id="log-text" style="font-size:0.9rem; color:#aaa;">กำลังประมวลผล...</span>
+            </div>
+
+            <button class="btn-action btn-primary" onclick="OS.printPhoto()">🖨️ พิมพ์รูปภาพ</button>
+            <button class="btn-action" onclick="OS.download()">📥 บันทึกรูปภาพ</button>
+            <button class="btn-action" onclick="OS.downloadVideo()">🎥 บันทึกวิดีโอ</button>
+            <button class="btn-action" onclick="OS.restart()" style="border:none; color:var(--ink-secondary); margin-top:10px; background:none; text-decoration:underline;">ถ่ายภาพใหม่</button>
+        </div>
+    </div>
+
+    <div id="flash"></div>
+    <img id="print-only-img" src="" alt="พิมพ์ภาพ">
+    <canvas id="hidden-canvas" style="display:none;"></canvas>
+
+    <script>
+        const OS = (function() {
+            // --- CONFIGURATION ---
+            const API_KEY = 'ffc90ad0bc5c7e0c056b68ef7430304a'; // ImgBB API Key
+            const C = { 
+                stripW: 1200,    
+                shots: 3,        
+                gap: 35,         
+                topMargin: 250,  
+                btmMargin: 150   
+            };
+            
+            let s = { 
+                filter: 'normal', 
+                frameImg: null,  
+                photos: [], 
+                stream: null, 
+                processing: false, 
+                timer: 3, 
+                flash: true, 
+                facingMode: 'user', 
+                mirror: true 
+            };
+
+            const D = {
+                screens: { 
+                    home: document.getElementById('screen-home'), 
+                    select: document.getElementById('screen-select-frame'),
+                    cam: document.getElementById('screen-cam'), 
+                    res: document.getElementById('screen-result') 
+                },
+                video: document.getElementById('video-feed'), 
+                canvas: document.getElementById('hidden-canvas'), 
+                count: document.getElementById('countdown'),
+                flash: document.getElementById('flash'), 
+                final: document.getElementById('final-img'), 
+                btnTimer: document.getElementById('btn-timer'),
+                printImg: document.getElementById('print-only-img')
+            };
+
+            const Aud = {
+                ctx: null,
+                init: function() { if(!this.ctx) this.ctx = new (window.AudioContext||window.webkitAudioContext)(); },
+                play: function(type) {
+                    this.init(); if(this.ctx.state === 'suspended') this.ctx.resume();
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.connect(g); g.connect(this.ctx.destination);
+                    const t = this.ctx.currentTime;
+                    if(type === 'shutter') {
+                        const n = this.ctx.createBufferSource(); 
+                        const b = this.ctx.createBuffer(1, this.ctx.sampleRate*0.1, this.ctx.sampleRate);
+                        const d = b.getChannelData(0); 
+                        for(let i=0;i<b.length;i++) d[i]=Math.random()*2-1;
+                        n.buffer=b; n.connect(g); g.gain.value=0.3; n.start(t);
+                    } else {
+                        o.frequency.value = 800; g.gain.value = 0.1; 
+                        o.start(t); o.stop(t+0.1);
+                    }
+                }
+            };
+
+            // --- NAVIGATION ---
+            function switchScreen(name) { 
+                Object.values(D.screens).forEach(s => s.classList.remove('active')); 
+                D.screens[name].classList.add('active'); 
+            }
+
+            function goToFrameSelect() { switchScreen('select'); }
+
+            function selectFrame(url) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = url;
+                img.onload = () => { s.frameImg = img; startCam(); };
+                img.onerror = () => { 
+                    console.warn("ไม่พบไฟล์กรอบรูป ("+url+") ระบบจะดำเนินการต่อโดยไม่มีกรอบ"); 
+                    s.frameImg = null; startCam(); 
+                };
+            }
+
+            // --- CAMERA LOGIC ---
+            async function startCam() {
+                try {
+                    s.stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: s.facingMode, width: {ideal: 1920}, height: {ideal: 1080} }, 
+                        audio: false 
+                    });
+                    D.video.srcObject = s.stream; 
+                    updateMirror();
+                    switchScreen('cam');
+                    startClock();
+                } catch(e) { alert("เกิดข้อผิดพลาด: กรุณาอนุญาตการเข้าถึงกล้องถ่ายรูป"); }
+            }
+
+            function startClock() {
+                setInterval(() => { 
+                    const d = new Date(); 
+                    document.getElementById('clock').innerText = 
+                        d.getHours().toString().padStart(2,'0')+":"+d.getMinutes().toString().padStart(2,'0'); 
+                }, 1000);
+            }
+
+            function toggleCamFlip() { s.facingMode = (s.facingMode === 'user') ? 'environment' : 'user'; s.stream.getTracks().forEach(t=>t.stop()); startCam(); }
+            function toggleTimer() { const timers = [3, 5, 10]; s.timer = timers[(timers.indexOf(s.timer)+1) % timers.length]; D.btnTimer.innerText = s.timer + "s"; }
+            function toggleFlash() { s.flash = !s.flash; document.querySelector('.tool-icon:last-child').style.opacity = s.flash?1:0.3; }
+            function toggleMirror() { s.mirror = !s.mirror; updateMirror(); }
+            function updateMirror() { D.video.style.transform = s.mirror ? "scaleX(-1)" : "scaleX(1)"; }
+
+            function filter(mode, btn) {
+                s.filter = mode; 
+                document.querySelectorAll('.f-item').forEach(b => b.classList.remove('active')); 
+                btn.classList.add('active');
+                let css = 'none';
+                if(mode==='soft') css = 'contrast(0.9) brightness(1.1) saturate(0.9)';
+                if(mode==='bw') css = 'grayscale(100%) contrast(1.1)';
+                if(mode==='warm') css = 'sepia(0.3) contrast(1.05) saturate(0.9)';
+                D.video.style.filter = css;
+            }
+
+            // --- SHOOTING PROCESS ---
+            async function snap() {
+                if(s.processing) return; s.processing = true; s.photos = [];
+                for(let i=0; i<C.shots; i++) { 
+                    await countdown(s.timer); 
+                    await capture(); 
+                    await new Promise(r => setTimeout(r, 800)); 
+                }
+                processResult();
+            }
+
+            function countdown(n) {
+                return new Promise(r => {
+                    let c = n; D.count.style.display = 'block'; D.count.innerText = c; 
+                    Aud.play('beep');
+                    const t = setInterval(() => { 
+                        c--; 
+                        if(c>0) { D.count.innerText = c; Aud.play('beep'); } 
+                        else { clearInterval(t); D.count.style.display = 'none'; r(); } 
+                    }, 1000);
+                });
+            }
+
+            function capture() {
+                return new Promise(r => {
+                    Aud.play('shutter');
+                    if(s.flash) { D.flash.style.opacity=1; setTimeout(() => D.flash.style.opacity=0, 150); }
+                    
+                    const cvs = document.createElement('canvas'); 
+                    cvs.width = D.video.videoWidth; cvs.height = D.video.videoHeight;
+                    const ctx = cvs.getContext('2d');
+                    
+                    if(s.mirror) { ctx.translate(cvs.width, 0); ctx.scale(-1, 1); }
+                    ctx.drawImage(D.video, 0, 0);
+                    
+                    if(s.filter !== 'normal') {
+                        const id = ctx.getImageData(0,0,cvs.width,cvs.height); const d = id.data;
+                        for(let i=0; i<d.length; i+=4) {
+                            let R=d[i], G=d[i+1], B=d[i+2];
+                            if(s.filter === 'bw') { const v = 0.299*R + 0.587*G + 0.114*B; d[i]=d[i+1]=d[i+2]=v; }
+                            else if(s.filter === 'warm') { 
+                                d[i] = R*0.393+G*0.769+B*0.189; 
+                                d[i+1] = R*0.349+G*0.686+B*0.168; 
+                                d[i+2] = R*0.272+G*0.534+B*0.131; 
+                            }
+                        }
+                        ctx.putImageData(id, 0, 0);
+                    }
+                    s.photos.push(cvs); 
+                    setTimeout(r, 200);
+                });
+            }
+
+            // --- RESULT GENERATION ---
+            function processResult() {
+                generateStripCanvas();
+                const finalUrl = D.canvas.toDataURL('image/jpeg', 0.95);
+                D.final.src = finalUrl;
+                switchScreen('res');
+                // เปลี่ยนสี Confetti เป็นธีม ภาคกลาง (ทอง, แดงเข้ม, ครีม)
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors:['#D4AF37', '#8B5A2B', '#4A3018', '#FDF5E6'] });
+                handleUpload(finalUrl);
+            }
+
+            function generateStripCanvas(shiftOrder = 0) {
+                const stripW = C.stripW; 
+                const photoW = stripW * 0.85; 
+                const photoH = (photoW * 3) / 4; 
+                
+                let H;
+                if (s.frameImg) {
+                    const ratio = s.frameImg.height / s.frameImg.width;
+                    H = stripW * ratio;
+                } else {
+                    H = C.topMargin + (photoH * C.shots) + (C.gap * (C.shots-1)) + C.btmMargin;
+                }
+
+                D.canvas.width = stripW; D.canvas.height = H;
+                const ctx = D.canvas.getContext('2d');
+                
+                // สีพื้นหลัง fallback
+                ctx.fillStyle = '#FDF5E6'; 
+                ctx.fillRect(0,0,stripW,H);
+
+                let displayPhotos = [...s.photos];
+                for(let i=0; i<shiftOrder; i++) displayPhotos.unshift(displayPhotos.pop());
+
+                const startX = (stripW - photoW) / 2;
+                let currentY = (H - (photoH*C.shots + C.gap*(C.shots-1))) / 2; 
+                
+                displayPhotos.forEach(p => {
+                    const sR = p.width/p.height, dR = 4/3;
+                    let sx, sy, sw, sh;
+                    if(sR > dR) { sh=p.height; sw=sh*dR; sx=(p.width-sw)/2; sy=0; } 
+                    else { sw=p.width; sh=sw/dR; sx=0; sy=(p.height-sh)/2; }
+                    
+                    ctx.drawImage(p, sx, sy, sw, sh, startX, currentY, photoW, photoH);
+                    currentY += photoH + C.gap;
+                });
+
+                if(s.frameImg) {
+                    ctx.drawImage(s.frameImg, 0, 0, stripW, H);
+                } else {
+                    ctx.fillStyle = "#4A3018"; ctx.font = "bold 80px 'ThaiCustomFont', sans-serif"; ctx.textAlign = "center";
+                    ctx.fillText("วิจิตรอักษรา เสนานุชิต สืบศิลป์", stripW/2, 150);
+                }
+            }
+
+            // --- EXPORT & PRINT ---
+            async function handleUpload(base64) {
+                const log = document.getElementById('log-text');
+                try {
+                    const fd = new FormData(); fd.append("image", base64.split(',')[1]); 
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, { method: "POST", body: fd });
+                    const data = await res.json();
+                    if (data.success) {
+                        log.innerText = "สแกน QR Code เพื่อดาวน์โหลดรูปภาพ";
+                        document.getElementById('qrcode').innerHTML = "";
+                        new QRCode(document.getElementById("qrcode"), { 
+                            text: data.data.url, width: 120, height: 120, 
+                            colorDark : "#4A3018", colorLight : "#FFF" 
+                        });
+                        document.getElementById('qr-box').style.display = 'block';
+                    }
+                } catch (err) { log.innerText = "อัพโหลดไม่สำเร็จ (กรุณาบันทึกภาพด้วยตนเอง)"; }
+            }
+
+            function download() { 
+                const a = document.createElement('a'); 
+                a.download = `WIJITAKSARA_${Date.now()}.jpg`; 
+                a.href = D.final.src; 
+                a.click(); 
+            }
+
+            function printPhoto() {
+                D.printImg.src = D.final.src;
+                setTimeout(() => { window.print(); }, 500);
+            }
+
+            async function downloadVideo() {
+                if(s.processing) return;
+                const log = document.getElementById('log-text');
+                log.innerText = "กำลังสร้างวิดีโอ...";
+                try {
+                    const stream = D.canvas.captureStream(30);
+                    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                    const chunks = [];
+                    recorder.ondataavailable = e => chunks.push(e.data);
+                    recorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' }); 
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a'); a.href = url; 
+                        a.download = `WIJITAKSARA_VIDEO_${Date.now()}.webm`;
+                        a.click();
+                        generateStripCanvas(0); 
+                        D.final.src = D.canvas.toDataURL('image/jpeg', 0.95);
+                        log.innerText = "บันทึกวิดีโอสำเร็จ!";
+                    };
+                    
+                    recorder.start();
+                    
+                    let startT = Date.now(); 
+                    let shift = 0;
+                    const anim = setInterval(() => { 
+                        if (Date.now() - startT >= 4000) { 
+                            clearInterval(anim); recorder.stop(); 
+                        } else {
+                            if(Date.now() % 500 < 50) { 
+                                shift++; generateStripCanvas(shift); 
+                            }
+                        }
+                    }, 33); 
+                } catch(e) { alert("อุปกรณ์/เบราว์เซอร์ของคุณไม่รองรับการบันทึกวิดีโอ"); log.innerText=""; }
+            }
+
+            function restart() { location.reload(); }
+
+            return { goToFrameSelect, selectFrame, toggleCamFlip, toggleTimer, toggleFlash, toggleMirror, filter, snap, download, restart, downloadVideo, printPhoto };
+        })();
+    </script>
+</body>
+</html>
